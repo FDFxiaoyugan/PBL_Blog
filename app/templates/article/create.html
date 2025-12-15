@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}发布文章{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">发布新文章</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- 文章标题 -->
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                            {% if form.title.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.title.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 文章分类 -->
+                        <div class="mb-3">
+                            {{ form.category_id.label(class="form-label") }}
+                            {{ form.category_id(class="form-control" + (" is-invalid" if form.category_id.errors else "")) }}
+                            {% if form.category_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.category_id.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 文章摘要 -->
+                        <div class="mb-3">
+                            {{ form.summary.label(class="form-label") }}
+                            <small class="text-muted">(可选，如不填写将自动生成)</small>
+                            {{ form.summary(class="form-control", rows="3") }}
+                            {% if form.summary.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.summary.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 文章内容 -->
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows="15") }}
+                            {% if form.content.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.content.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 发布状态 -->
+                        <div class="mb-3">
+                            {{ form.status.label(class="form-label") }}
+                            {{ form.status(class="form-control") }}
+                            <small class="text-muted">
+                                草稿：仅自己可见 | 已发布：所有人可见 | 已归档：不在列表中显示
+                            </small>
+                        </div>
+
+                        <!-- 提交按钮 -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('article.list_articles') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> 返回列表
+                            </a>
+                            <div>
+                                <button type="submit" name="status" value="draft" class="btn btn-outline-primary">
+                                    <i class="fas fa-save"></i> 保存草稿
+                                </button>
+                                <button type="submit" name="status" value="published" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> 发布文章
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 处理保存草稿和发布按钮
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const statusField = document.querySelector('#status');
+    
+    form.addEventListener('submit', function(e) {
+        const submitter = e.submitter;
+        if (submitter && submitter.name === 'status') {
+            statusField.value = submitter.value;
+        }
+    });
+});
+</script>
+{% endblock %}

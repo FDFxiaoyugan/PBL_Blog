@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}评论管理 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2">
+            <!-- 侧边栏导航 -->
+            <div class="list-group">
+                <a href="{{ url_for('admin.dashboard') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-tachometer-alt me-2"></i>仪表板
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users me-2"></i>用户管理
+                </a>
+                <a href="{{ url_for('admin.articles') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-newspaper me-2"></i>文章管理
+                </a>
+                <a href="{{ url_for('admin.manage_comments') }}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-comments me-2"></i>评论管理
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>评论管理</h2>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">首页</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理后台</a></li>
+                        <li class="breadcrumb-item active">评论管理</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <!-- 筛选选项 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('admin.manage_comments', status='all') }}" 
+                                   class="btn btn-outline-primary {% if current_status == 'all' %}active{% endif %}">
+                                    全部评论
+                                </a>
+                                <a href="{{ url_for('admin.manage_comments', status='approved') }}" 
+                                   class="btn btn-outline-success {% if current_status == 'approved' %}active{% endif %}">
+                                    已审核
+                                </a>
+                                <a href="{{ url_for('admin.manage_comments', status='pending') }}" 
+                                   class="btn btn-outline-warning {% if current_status == 'pending' %}active{% endif %}">
+                                    待审核
+                                </a>
+                                <a href="{{ url_for('admin.manage_comments', status='rejected') }}" 
+                                   class="btn btn-outline-danger {% if current_status == 'rejected' %}active{% endif %}">
+                                    已拒绝
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <span class="text-muted">共 {{ comments.total }} 条评论</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 评论列表 -->
+            {% if comments.items %}
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>评论内容</th>
+                                        <th>作者</th>
+                                        <th>文章</th>
+                                        <th>状态</th>
+                                        <th>发表时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for comment in comments.items %}
+                                        <tr id="comment-row-{{ comment.id }}">
+                                            <td>
+                                                <div class="comment-content" style="max-width: 300px;">
+                                                    {% if comment.parent_id %}
+                                                        <small class="text-muted d-block mb-1">
+                                                            <i class="fas fa-reply me-1"></i>
+                                                            回复 {{ comment.parent.author.get_display_name() }}
+                                                        </small>
+                                                    {% endif %}
+                                                    <p class="mb-0 text-truncate">{{ comment.content }}</p>
+                                                    {% if comment.content|length > 50 %}
+                                                        <small class="text-muted">
+                                                            <a href="#" onclick="toggleCommentContent({{ comment.id }})" class="text-decoration-none">
+                                                                查看完整内容
+                                                            </a>
+                                                        </small>
+                                                        <div id="full-content-{{ comment.id }}" style="display: none;">
+                                                            <p class="mb-0 mt-2">{{ comment.content|nl2br|safe }}</p>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="{{ comment.author.avatar or '/static/images/default-avatar.png' }}" 
+                                                         alt="头像" class="rounded-circle me-2" width="32" height="32">
+                                                    <div>
+                                                        <div class="fw-bold">{{ comment.author.get_display_name() }}</div>
+                                                        <small class="text-muted">{{ comment.author.username }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('article.article_detail', id=comment.article_id) }}" 
+                                                   class="text-decoration-none" target="_blank">
+                                                    {{ comment.article.title[:30] }}{% if comment.article.title|length > 30 %}...{% endif %}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                {% if comment.is_approved() %}
+                                                    <span class="badge bg-success">已审核</span>
+                                                {% elif comment.is_pending() %}
+                                                    <span class="badge bg-warning">待审核</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">已拒绝</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div>{{ comment.created_at.strftime('%Y-%m-%d') }}</div>
+                                                <small class="text-muted">{{ comment.created_at.strftime('%H:%M') }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    {% if not comment.is_approved() %}
+                                                        <button type="button" class="btn btn-outline-success" 
+                                                                onclick="moderateComment({{ comment.id }}, 'approve')"
+                                                                title="审核通过">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                    
+                                                    {% if not comment.is_rejected() %}
+                                                        <button type="button" class="btn btn-outline-danger" 
+                                                                onclick="moderateComment({{ comment.id }}, 'reject')"
+                                                                title="拒绝">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                    
+                                                    {% if not comment.is_pending() %}
+                                                        <button type="button" class="btn btn-outline-warning" 
+                                                                onclick="moderateComment({{ comment.id }}, 'pending')"
+                                                                title="设为待审核">
+                                                            <i class="fas fa-clock"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                    
+                                                    <button type="button" class="btn btn-outline-danger" 
+                                                            onclick="deleteComment({{ comment.id }})"
+                                                            title="删除">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分页导航 -->
+                {% if comments.pages > 1 %}
+                    <nav aria-label="评论分页" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if comments.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin.manage_comments', page=comments.prev_num, status=current_status) }}">上一页</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in comments.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != comments.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('admin.manage_comments', page=page_num, status=current_status) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if comments.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin.manage_comments', page=comments.next_num, status=current_status) }}">下一页</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-comment-slash fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">暂无评论</h4>
+                    <p class="text-muted">
+                        {% if current_status == 'all' %}
+                            系统中还没有任何评论。
+                        {% elif current_status == 'pending' %}
+                            暂无待审核的评论。
+                        {% elif current_status == 'approved' %}
+                            暂无已审核的评论。
+                        {% else %}
+                            暂无已拒绝的评论。
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCommentContent(commentId) {
+    const fullContent = document.getElementById('full-content-' + commentId);
+    if (fullContent.style.display === 'none') {
+        fullContent.style.display = 'block';
+    } else {
+        fullContent.style.display = 'none';
+    }
+}
+
+function moderateComment(commentId, action) {
+    let url, message;
+    
+    switch(action) {
+        case 'approve':
+            url = `/comments/${commentId}/approve`;
+            message = '确定要审核通过这条评论吗？';
+            break;
+        case 'reject':
+            url = `/comments/${commentId}/reject`;
+            message = '确定要拒绝这条评论吗？';
+            break;
+        case 'pending':
+            url = `/comments/${commentId}/pending`;
+            message = '确定要将这条评论设为待审核状态吗？';
+            break;
+        default:
+            return;
+    }
+    
+    if (confirm(message)) {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '操作失败，请重试。');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试。');
+        });
+    }
+}
+
+function deleteComment(commentId) {
+    if (confirm('确定要删除这条评论吗？此操作不可撤销。')) {
+        fetch(`/comments/${commentId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('删除失败，请重试。');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除失败，请重试。');
+        });
+    }
+}
+</script>
+{% endblock %}

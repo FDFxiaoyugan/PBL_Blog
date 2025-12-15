@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}我的文章{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>我的文章</h2>
+        <a href="{{ url_for('article.create_article') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 发布新文章
+        </a>
+    </div>
+
+    {% if articles.items %}
+        <div class="row">
+            {% for article in articles.items %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('article.article_detail', id=article.id) }}" class="text-decoration-none">
+                                        {{ article.title }}
+                                    </a>
+                                </h5>
+                                <span class="badge 
+                                    {% if article.status == 'published' %}bg-success
+                                    {% elif article.status == 'draft' %}bg-secondary
+                                    {% else %}bg-warning{% endif %}">
+                                    {% if article.status == 'published' %}已发布
+                                    {% elif article.status == 'draft' %}草稿
+                                    {% else %}已归档{% endif %}
+                                </span>
+                            </div>
+                            
+                            <p class="card-text text-muted">
+                                {{ article.summary or (article.content[:150] + '...' if article.content|length > 150 else article.content) }}
+                            </p>
+                            
+                            <div class="d-flex justify-content-between align-items-center text-muted small">
+                                <div>
+                                    {% if article.category %}
+                                        <i class="fas fa-tag"></i> {{ article.category.name }}
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <i class="fas fa-eye"></i> {{ article.view_count }}
+                                    <i class="fas fa-comments ms-2"></i> {{ article.get_comment_count() }}
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2 text-muted small">
+                                <i class="fas fa-calendar"></i> 
+                                {% if article.published_at %}
+                                    发布于 {{ article.published_at.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    创建于 {{ article.created_at.strftime('%Y-%m-%d') }}
+                                {% endif %}
+                                {% if article.updated_at != article.created_at %}
+                                    <span class="ms-2">
+                                        <i class="fas fa-edit"></i> 修改于 {{ article.updated_at.strftime('%Y-%m-%d') }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="card-footer bg-transparent">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{{ url_for('article.edit_article', id=article.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit"></i> 编辑
+                                </a>
+                                
+                                {% if article.status == 'draft' %}
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="publishArticle({{ article.id }})">
+                                        <i class="fas fa-paper-plane"></i> 发布
+                                    </button>
+                                {% elif article.status == 'published' %}
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="unpublishArticle({{ article.id }})">
+                                        <i class="fas fa-eye-slash"></i> 草稿
+                                    </button>
+                                {% endif %}
+                                
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteArticle({{ article.id }}, '{{ article.title }}')">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- 分页导航 -->
+        {% if articles.pages > 1 %}
+            <nav aria-label="文章分页">
+                <ul class="pagination justify-content-center">
+                    {% if articles.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('article.my_articles', page=articles.prev_num) }}">上一页</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in articles.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != articles.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('article.my_articles', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">…</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if articles.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('article.my_articles', page=articles.next_num) }}">下一页</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">还没有文章</h4>
+            <p class="text-muted">开始创作您的第一篇文章吧！</p>
+            <a href="{{ url_for('article.create_article') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 发布文章
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除文章 "<span id="delete-article-title"></span>" 吗？</p>
+                <p class="text-danger">此操作不可撤销，文章及其所有评论都将被删除。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="delete-form" method="POST" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="article_id" id="delete-article-id"/>
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function publishArticle(articleId) {
+    fetch(`/articles/${articleId}/publish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function unpublishArticle(articleId) {
+    fetch(`/articles/${articleId}/unpublish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function deleteArticle(articleId, articleTitle) {
+    document.getElementById('delete-article-title').textContent = articleTitle;
+    document.getElementById('delete-article-id').value = articleId;
+    document.getElementById('delete-form').action = `/articles/${articleId}/delete`;
+    
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+</script>
+{% endblock %}

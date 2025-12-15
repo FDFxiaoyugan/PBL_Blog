@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}个人中心 - 博客系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>个人信息</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>用户名:</strong> {{ current_user.username }}</p>
+                <p><strong>昵称:</strong> {{ current_user.get_display_name() }}</p>
+                <p><strong>邮箱:</strong> {{ current_user.email }}</p>
+                <p><strong>注册时间:</strong> {{ current_user.created_at.strftime('%Y-%m-%d') }}</p>
+                {% if current_user.is_admin() %}
+                    <span class="badge bg-danger">管理员</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>统计信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="text-center">
+                            <h3 class="text-primary">{{ current_user.get_article_count() }}</h3>
+                            <p>发布文章</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center">
+                            <h3 class="text-success">{{ current_user.get_comment_count() }}</h3>
+                            <p>发表评论</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>快速操作</h5>
+            </div>
+            <div class="card-body">
+                <a href="#" class="btn btn-primary me-2">发布文章</a>
+                <a href="#" class="btn btn-outline-primary me-2">我的文章</a>
+                <a href="#" class="btn btn-outline-secondary">编辑资料</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

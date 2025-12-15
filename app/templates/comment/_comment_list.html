@@ -1,0 +1,168 @@
+<!-- 评论列表组件 -->
+<div class="comments-section mt-5">
+    <h4 class="mb-4">
+        评论 
+        {% if comments %}
+            <span class="badge bg-secondary">{{ comments|length }}</span>
+        {% endif %}
+    </h4>
+
+    <!-- 评论表单 -->
+    {% if current_user.is_authenticated %}
+        <div class="comment-form mb-4">
+            <form method="POST" action="{{ url_for('comment.create_comment', article_id=article.id) }}">
+                {{ comment_form.hidden_tag() }}
+                {{ comment_form.article_id(value=article.id) }}
+                
+                <div class="mb-3">
+                    {{ comment_form.content.label(class="form-label") }}
+                    {{ comment_form.content(class="form-control") }}
+                    {% if comment_form.content.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in comment_form.content.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-end">
+                    {{ comment_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            请 <a href="{{ url_for('auth.login') }}" class="alert-link">登录</a> 后发表评论。
+        </div>
+    {% endif %}
+
+    <!-- 评论列表 -->
+    {% if comments %}
+        <div class="comments-list">
+            {% for comment in comments %}
+                {% if comment.is_top_level() %}
+                    {{ render_comment(comment, article, 0) }}
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="far fa-comment fa-2x mb-2"></i>
+            <p>暂无评论，快来发表第一条评论吧！</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 评论渲染宏 -->
+{% macro render_comment(comment, article, depth=0) %}
+    <div class="comment-item" id="comment-{{ comment.id }}" data-depth="{{ depth }}">
+        <div class="card mb-3 {% if depth > 0 %}ms-{{ min(depth * 3, 9) }}{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="comment-meta">
+                        <strong class="comment-author">{{ comment.author.get_display_name() }}</strong>
+                        <small class="text-muted ms-2">
+                            {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% if comment.parent_id %}
+                                · 回复 
+                                <a href="#comment-{{ comment.parent_id }}" class="text-decoration-none">
+                                    {{ comment.parent.author.get_display_name() }}
+                                </a>
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <div class="comment-actions">
+                        {% if current_user.is_authenticated %}
+                            <button class="btn btn-sm btn-outline-primary reply-btn" 
+                                    data-comment-id="{{ comment.id }}"
+                                    data-author-name="{{ comment.author.get_display_name() }}">
+                                <i class="fas fa-reply me-1"></i>回复
+                            </button>
+                        {% endif %}
+                        
+                        {% if comment.can_delete(current_user) %}
+                            <form method="POST" action="{{ url_for('comment.delete_comment', comment_id=comment.id) }}" 
+                                  class="d-inline ms-2" onsubmit="return confirm('确定要删除这条评论吗？');">
+                                {{ csrf_token() }}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash me-1"></i>删除
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="comment-content">
+                    {{ comment.content|nl2br }}
+                </div>
+                
+                <!-- 回复表单（隐藏） -->
+                <div class="reply-form mt-3" id="reply-form-{{ comment.id }}" style="display: none;">
+                    <form method="POST" action="{{ url_for('comment.reply_comment', comment_id=comment.id) }}">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="article_id" value="{{ article.id }}">
+                        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">回复 {{ comment.author.get_display_name() }}:</label>
+                            <textarea name="content" class="form-control" rows="3" 
+                                      placeholder="请输入您的回复..." required></textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-secondary cancel-reply-btn">取消</button>
+                            <button type="submit" class="btn btn-sm btn-primary">发表回复</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 渲染回复 -->
+        {% if comment.get_approved_replies().count() > 0 and depth < 5 %}
+            {% for reply in comment.get_approved_replies() %}
+                {{ render_comment(reply, article, depth + 1) }}
+            {% endfor %}
+        {% endif %}
+    </div>
+{% endmacro %}
+
+<!-- JavaScript for comment interactions -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 回复按钮点击事件
+    document.querySelectorAll('.reply-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const replyForm = document.getElementById('reply-form-' + commentId);
+            
+            // 隐藏其他回复表单
+            document.querySelectorAll('.reply-form').forEach(function(form) {
+                if (form.id !== 'reply-form-' + commentId) {
+                    form.style.display = 'none';
+                }
+            });
+            
+            // 切换当前回复表单显示状态
+            if (replyForm.style.display === 'none') {
+                replyForm.style.display = 'block';
+                replyForm.querySelector('textarea').focus();
+            } else {
+                replyForm.style.display = 'none';
+            }
+        });
+    });
+    
+    // 取消回复按钮点击事件
+    document.querySelectorAll('.cancel-reply-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const replyForm = this.closest('.reply-form');
+            replyForm.style.display = 'none';
+            replyForm.querySelector('textarea').value = '';
+        });
+    });
+});
+</script>

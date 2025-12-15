@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <article class="card">
+                <div class="card-body">
+                    <!-- 文章标题 -->
+                    <h1 class="card-title">{{ article.title }}</h1>
+                    
+                    <!-- 文章元信息 -->
+                    <div class="d-flex justify-content-between align-items-center mb-4 text-muted">
+                        <div>
+                            <i class="fas fa-user"></i> {{ article.author.get_display_name() }}
+                            {% if article.category %}
+                                <i class="fas fa-tag ms-3"></i> {{ article.category.name }}
+                            {% endif %}
+                            <i class="fas fa-calendar ms-3"></i> 
+                            {% if article.published_at %}
+                                {{ article.published_at.strftime('%Y年%m月%d日 %H:%M') }}
+                            {% else %}
+                                {{ article.created_at.strftime('%Y年%m月%d日 %H:%M') }}
+                            {% endif %}
+                        </div>
+                        <div>
+                            <i class="fas fa-eye"></i> {{ article.view_count }}
+                            <i class="fas fa-comments ms-2"></i> {{ article.get_comment_count() }}
+                        </div>
+                    </div>
+
+                    <!-- 文章状态标识 -->
+                    {% if article.status != 'published' %}
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle"></i>
+                            {% if article.status == 'draft' %}
+                                此文章为草稿状态
+                            {% elif article.status == 'archived' %}
+                                此文章已归档
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- 文章内容 -->
+                    <div class="article-content">
+                        {{ article.content|safe }}
+                    </div>
+
+                    <!-- 文章操作按钮 -->
+                    {% if current_user.is_authenticated and article.can_edit(current_user) %}
+                        <div class="mt-4 pt-4 border-top">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('article.edit_article', id=article.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit"></i> 编辑文章
+                                </a>
+                                
+                                {% if article.status == 'draft' %}
+                                    <button type="button" class="btn btn-outline-success" onclick="publishArticle({{ article.id }})">
+                                        <i class="fas fa-paper-plane"></i> 发布文章
+                                    </button>
+                                {% elif article.status == 'published' %}
+                                    <button type="button" class="btn btn-outline-warning" onclick="unpublishArticle({{ article.id }})">
+                                        <i class="fas fa-eye-slash"></i> 转为草稿
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="archiveArticle({{ article.id }})">
+                                        <i class="fas fa-archive"></i> 归档文章
+                                    </button>
+                                {% endif %}
+                                
+                                <button type="button" class="btn btn-outline-danger" onclick="deleteArticle({{ article.id }})">
+                                    <i class="fas fa-trash"></i> 删除文章
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </article>
+
+            <!-- 评论区域 -->
+            {% include 'comment/_comment_list.html' %}
+        </div>
+
+        <!-- 侧边栏 -->
+        <div class="col-md-4">
+            <!-- 作者信息 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">作者信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <img src="{{ article.author.avatar or '/static/images/default-avatar.png' }}" 
+                                 alt="作者头像" class="rounded-circle" width="50" height="50">
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-1">{{ article.author.get_display_name() }}</h6>
+                            {% if article.author.bio %}
+                                <p class="text-muted small mb-0">{{ article.author.bio }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 相关文章 -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">相关文章</h6>
+                </div>
+                <div class="card-body">
+                    <!-- 这里可以添加相关文章的逻辑 -->
+                    <p class="text-muted">暂无相关文章</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除这篇文章吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form method="POST" action="{{ url_for('article.delete_article', id=article.id) }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="article_id" value="{{ article.id }}"/>
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function publishArticle(articleId) {
+    fetch(`/articles/${articleId}/publish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function unpublishArticle(articleId) {
+    fetch(`/articles/${articleId}/unpublish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function archiveArticle(articleId) {
+    fetch(`/articles/${articleId}/archive`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+function deleteArticle(articleId) {
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+</script>
+{% endblock %}
