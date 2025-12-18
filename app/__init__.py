@@ -5,11 +5,13 @@ Flask Application Factory
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 from config.config import config
 
 # 初始化扩展
 db = SQLAlchemy()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 def create_app(config_name='default'):
     """
@@ -29,6 +31,19 @@ def create_app(config_name='default'):
     # 初始化扩展
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
+    
+    # 配置日志系统
+    from app.utils.logger import setup_logging
+    setup_logging(app)
+    
+    # 配置性能监控
+    from app.utils.performance import setup_performance_monitoring
+    setup_performance_monitoring(app)
+    
+    # 配置静态资源优化
+    from app.utils.assets import setup_asset_optimization
+    setup_asset_optimization(app)
     
     # 配置登录管理器
     login_manager.login_view = 'auth.login'
@@ -54,18 +69,30 @@ def create_app(config_name='default'):
     app.register_blueprint(article_bp)
     app.register_blueprint(comment_bp)
     
-    # 注册错误处理器
-    @app.errorhandler(403)
-    def forbidden(error):
-        """403 权限不足错误处理"""
-        from flask import render_template
-        return render_template('errors/403.html'), 403
+    # 注册全局错误处理器
+    from app.utils.error_handlers import register_error_handlers
+    register_error_handlers(app)
     
-    @app.errorhandler(404)
-    def not_found(error):
-        """404 页面不存在错误处理"""
-        from flask import render_template
-        return render_template('errors/404.html'), 404
+    # 添加安全响应头
+    @app.after_request
+    def add_security_headers(response):
+        """添加安全响应头"""
+        # 防止XSS攻击
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        
+        # 内容安全策略
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "img-src 'self' data: https:; "
+            "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "worker-src 'self' blob:;"
+        )
+        
+        return response
     
     # 注册模板过滤器
     @app.template_filter('nl2br')

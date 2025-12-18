@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}编辑评论 - 博客系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>编辑评论</h2>
+            <a href="{{ url_for('admin.manage_comments') }}" class="btn btn-secondary">返回列表</a>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">评论信息</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="20%">评论ID:</th>
+                        <td>{{ comment.id }}</td>
+                    </tr>
+                    <tr>
+                        <th>作者:</th>
+                        <td>{{ comment.author.username }} ({{ comment.author.get_display_name() }})</td>
+                    </tr>
+                    <tr>
+                        <th>文章:</th>
+                        <td>
+                            <a href="{{ url_for('article.article_detail', article_id=comment.article_id) }}" target="_blank">
+                                {{ comment.article.title }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>状态:</th>
+                        <td>
+                            {% if comment.status == 'approved' %}
+                            <span class="badge bg-success">已审核</span>
+                            {% elif comment.status == 'pending' %}
+                            <span class="badge bg-warning">待审核</span>
+                            {% else %}
+                            <span class="badge bg-danger">已拒绝</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>发表时间:</th>
+                        <td>{{ comment.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">编辑评论内容</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="content" class="form-label">评论内容 <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="content" name="content" rows="6" required>{{ comment.content }}</textarea>
+                        <small class="form-text text-muted">最多1000个字符</small>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">保存修改</button>
+                        <a href="{{ url_for('admin.manage_comments') }}" class="btn btn-secondary">取消</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
