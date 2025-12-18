@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}用户详情 - {{ user.username }} - 博客系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>用户详情</h2>
+            <div>
+                <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-warning">编辑用户</a>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">返回列表</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">基本信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="30%">用户ID:</th>
+                                <td>{{ user.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>用户名:</th>
+                                <td>{{ user.username }}</td>
+                            </tr>
+                            <tr>
+                                <th>邮箱:</th>
+                                <td>{{ user.email }}</td>
+                            </tr>
+                            <tr>
+                                <th>昵称:</th>
+                                <td>{{ user.nickname or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>状态:</th>
+                                <td>
+                                    {% if user.is_active %}
+                                    <span class="badge bg-success">激活</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">禁用</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>角色:</th>
+                                <td>
+                                    {% if user.is_admin() %}
+                                    <span class="badge bg-danger">管理员</span>
+                                    {% else %}
+                                    <span class="badge bg-primary">普通用户</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>注册时间:</th>
+                                <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                            <tr>
+                                <th>更新时间:</th>
+                                <td>{{ user.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                {% if user.bio %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">个人简介</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>{{ user.bio }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">统计信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <div class="p-3">
+                                    <h3 class="text-primary">{{ article_count }}</h3>
+                                    <p class="text-muted mb-0">总文章数</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3">
+                                    <h3 class="text-success">{{ published_article_count }}</h3>
+                                    <p class="text-muted mb-0">已发布文章</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3">
+                                    <h3 class="text-info">{{ comment_count }}</h3>
+                                    <p class="text-muted mb-0">评论数</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">管理操作</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if user.id != current_user.id %}
+                        <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" class="mb-2">
+                            <button type="submit" class="btn btn-{{ 'secondary' if user.is_active else 'success' }} w-100"
+                                    onclick="return confirm('确定要{{ '禁用' if user.is_active else '激活' }}该用户吗？')">
+                                <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
+                                {{ '禁用用户' if user.is_active else '激活用户' }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}">
+                            <button type="submit" class="btn btn-danger w-100"
+                                    onclick="return confirm('确定要删除该用户及其所有内容吗？此操作不可恢复！')">
+                                <i class="fas fa-trash"></i> 删除用户
+                            </button>
+                        </form>
+                        {% else %}
+                        <p class="text-muted mb-0">不能对自己的账号执行管理操作</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
